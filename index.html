@@ -41,6 +41,16 @@ h1{font-size:1.5rem;margin:8px 0 4px}
 .res{text-align:center}.big{font-size:3rem;font-weight:800}
 .wrong{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 14px;text-align:start;margin-top:12px}
 .wrong div{padding:4px 0}
+#mt{margin:0 0 12px}
+.logo{display:flex;justify-content:center;margin:8px 0}
+.logo svg{width:130px;height:130px}
+.logo.win{animation:pop .6s ease-out}
+.logo.lose{animation:shake .6s}
+@keyframes pop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+.cf{position:fixed;top:-14px;width:8px;height:12px;border-radius:2px;animation:fall 2.4s linear forwards;pointer-events:none}
+@keyframes fall{to{transform:translateY(105vh) rotate(540deg)}}
+@media (prefers-reduced-motion:reduce){.logo.win,.logo.lose{animation:none}.cf{display:none}}
 </style>
 </head>
 <body>
@@ -60,19 +70,53 @@ const sh=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.r
 const stars=b=>b>=10?"★★★":b>=8?"★★☆":b>=PASS?"★☆☆":"☆☆☆";
 let S=null,tm=null;
 
+/* ===== الصوت والشعارات (فوز / خسارة) ===== */
+let AC=null,mute=false;
+try{mute=localStorage.getItem("dm")==="1"}catch(e){}
+function unlock(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume()}catch(e){}}
+/* كل نغمة: [التردد بالهرتز، وقت البداية، المدة بالثواني] - غيّرها لتغيّر اللحن */
+const SND={
+  win:{type:"triangle",vol:.28,notes:[[523,0,.15],[659,.15,.15],[784,.3,.15],[1047,.45,.5]]},
+  lose:{type:"sawtooth",vol:.14,notes:[[392,0,.28],[349,.28,.28],[294,.56,.28],[220,.84,.6]]}
+};
+function sfx(k){
+  if(mute)return;
+  try{
+    unlock();const n=AC.currentTime,c=SND[k];
+    c.notes.forEach(([f,t,d])=>{
+      const o=AC.createOscillator(),g=AC.createGain();
+      o.type=c.type;o.frequency.value=f;
+      g.gain.setValueAtTime(.0001,n+t);
+      g.gain.exponentialRampToValueAtTime(c.vol,n+t+.03);
+      g.gain.exponentialRampToValueAtTime(.0001,n+t+d);
+      o.connect(g);g.connect(AC.destination);o.start(n+t);o.stop(n+t+d+.05);
+    });
+  }catch(e){}
+}
+/* الشعارات: SVG - تقدر تغيّرها أو تستبدلها بصورة <img> */
+const WIN='<div class="logo win"><svg viewBox="0 0 120 120" aria-label="فوز"><circle cx="60" cy="60" r="56" fill="#f4b400"/><circle cx="60" cy="60" r="47" fill="#ffd54f"/><path d="M38 34h44v20a22 22 0 0 1-44 0z" fill="#d62828"/><path d="M38 40H28v6a12 12 0 0 0 12 12M82 40h10v6a12 12 0 0 1-12 12" fill="none" stroke="#d62828" stroke-width="5" stroke-linecap="round"/><rect x="55" y="74" width="10" height="12" fill="#d62828"/><rect x="44" y="86" width="32" height="8" rx="3" fill="#d62828"/><path d="M60 40l3.5 7.4 8 1-5.9 5.6 1.5 8L60 58l-7.1 3.9 1.5-8-5.9-5.6 8-1z" fill="#fff"/></svg></div>';
+const LOSE='<div class="logo lose"><svg viewBox="0 0 120 120" aria-label="خسارة"><circle cx="60" cy="60" r="56" fill="#8d8a80"/><circle cx="60" cy="60" r="47" fill="#b9b5a8"/><circle cx="44" cy="52" r="6" fill="#222"/><circle cx="76" cy="52" r="6" fill="#222"/><path d="M42 84q18-18 36 0" fill="none" stroke="#222" stroke-width="6" stroke-linecap="round"/><path d="M80 62q6 8 0 14q-6-6 0-14z" fill="#4aa3ff"/></svg></div>';
+function confetti(){
+  const c=["#d62828","#f4b400","#2e9e5b","#1c6fd6","#222"];let h="";
+  for(let i=0;i<30;i++)h+='<i class="cf" style="left:'+Math.random()*100+'%;background:'+c[i%5]+';animation-delay:'+(Math.random()*.8)+'s"></i>';
+  const d=document.createElement("div");d.innerHTML=h;document.body.appendChild(d);setTimeout(()=>d.remove(),4000);
+}
+
 function home(){
   clearInterval(tm);
-  let h='<div class="stripe"></div><h1>Deutsch lernen 🇩🇪</h1><p class="sub">اختبار سرعة: 10 أسئلة لكل مستوى. أجب بسرعة لتحصل على نقاط أكثر. أحرز '+PASS+' من 10 لفتح المستوى التالي.</p><div class="grid">',pg=-1;
+  let h='<div class="stripe"></div><h1>Deutsch lernen 🇩🇪</h1><p class="sub">اختبار سرعة: 10 أسئلة لكل مستوى. أجب بسرعة لتحصل على نقاط أكثر. أحرز '+PASS+' من 10 لفتح المستوى التالي.</p><button class="btn alt" id="mt">'+(mute?"🔇 الصوت متوقف":"🔊 الصوت يعمل")+'</button><div class="grid">',pg=-1;
   L.forEach((l,i)=>{
     if(l.g!==pg){h+='<div class="sec">'+G[l.g]+'</div>';pg=l.g}
     const lock=i>0&&L[i-1].g===l.g&&!((prog[i-1]||{}).best>=PASS);
     h+='<button class="lv" data-i="'+i+'"'+(lock?" disabled":"")+'><div class="e">'+(lock?"🔒":l.e)+'</div><div class="n">'+l.n+'</div><div class="s">'+stars((prog[i]||{}).best||0)+'</div></button>';
   });
   $.innerHTML=h+'</div>';
+  document.getElementById("mt").onclick=()=>{mute=!mute;try{localStorage.setItem("dm",mute?"1":"0")}catch(e){}if(!mute)sfx("win");home()};
   $.querySelectorAll(".lv").forEach(b=>b.onclick=()=>start(+b.dataset.i));
 }
 
 function start(i){
+  unlock();
   const lv=L[i],w=sh(lv.w).slice(0,10);
   const qs=w.map((x,k)=>({w:x,dir:lv.t==="a"?"art":k<5?"ar2de":"de2ar"}));
   S={i,qs:sh(qs),k:0,ok:0,pts:0,wrong:[],t0:Date.now()};
@@ -131,8 +175,8 @@ function result(){
   if(!(p.pts>=S.pts))p.pts=S.pts;
   prog[S.i]=p;save();
   const pass=S.ok>=PASS,sec=Math.round((Date.now()-S.t0)/1000);
-  $.innerHTML='<div class="res"><div class="big">'+S.ok+' / 10</div><div style="color:var(--acc);font-size:1.6rem">'+stars(S.ok)+'</div>'+
-  '<p>'+(pass?"🎉 أحسنت! تم اجتياز المستوى":"حاول مرة أخرى، تحتاج "+PASS+" على الأقل")+'</p><p class="sub">النقاط: '+S.pts+' · الوقت: '+sec+' ثانية</p>'+
+  $.innerHTML='<div class="res">'+(S.ok>=PASS?WIN:LOSE)+'<div class="big">'+S.ok+' / 10</div><div style="color:var(--acc);font-size:1.6rem">'+stars(S.ok)+'</div>'+
+  '<p>'+(pass?"🎉 مبروك! تم اجتياز المستوى":"حاول مرة أخرى، تحتاج "+PASS+" على الأقل")+'</p><p class="sub">النقاط: '+S.pts+' · الوقت: '+sec+' ثانية</p>'+
   '<button class="btn" id="re">إعادة المستوى</button>'+
   (pass&&S.i<L.length-1?'<button class="btn" id="nx">المستوى التالي ▶</button>':"")+
   '<button class="btn alt" id="hm">القائمة</button>'+
@@ -140,6 +184,7 @@ function result(){
   document.getElementById("re").onclick=()=>start(S.i);
   const nx=document.getElementById("nx");if(nx)nx.onclick=()=>start(S.i+1);
   document.getElementById("hm").onclick=home;
+  sfx(pass?"win":"lose");if(pass)confetti();
 }
 home();
 </script>
