@@ -16,18 +16,22 @@ h1{font-size:1.5rem;margin:8px 0 4px}
 .sub{color:var(--mut);margin:0 0 16px}
 .stripe{height:6px;border-radius:3px;background:linear-gradient(90deg,#222 33%,#d62828 33% 66%,#f4b400 66%);margin-bottom:12px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sec{grid-column:1/-1;font-weight:800;margin:10px 0 0;color:var(--pri)}
 .lv{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;text-align:center;cursor:pointer;font:inherit;color:inherit}
 .lv .e{font-size:2rem}.lv .n{font-weight:700;margin:4px 0}.lv .s{color:var(--acc);letter-spacing:2px;min-height:1.3em}
 .lv[disabled]{opacity:.45;cursor:not-allowed}
 .bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin:10px 0}
 .bar i{display:block;height:100%;width:100%;background:var(--ok);transition:width .1s linear}
 .top{display:flex;justify-content:space-between;color:var(--mut);font-size:.95rem}
-.q{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:28px 12px;text-align:center;margin:12px 0}
-.q small{display:block;color:var(--mut);margin-bottom:8px}
+.q{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:24px 12px;text-align:center;margin:12px 0}
+.q small,.sub2{display:block;color:var(--mut);margin-bottom:8px}
+.sub2{font-size:.9rem;margin:6px 0 0}
 .q .w{font-size:2.2rem;font-weight:800}
+.q .w.long{font-size:1.5rem;line-height:1.5}
 .de{direction:ltr;unicode-bidi:isolate;display:inline-block}
 .opts{display:grid;gap:10px}
 .o{background:var(--card);border:2px solid var(--bd);border-radius:12px;padding:14px;font:inherit;font-size:1.2rem;color:inherit;cursor:pointer}
+.o.long{font-size:1rem}
 .o:active{transform:scale(.98)}
 .o.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 22%,var(--card))}
 .o.no{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 22%,var(--card))}
@@ -41,16 +45,13 @@ h1{font-size:1.5rem;margin:8px 0 4px}
 </head>
 <body>
 <div id="app"></div>
+<script src="words.js"></script>
 <script>
-const L=[
-{n:"التحيات",e:"👋",w:[["Hallo","مرحبا"],["Danke","شكرا"],["Bitte","من فضلك"],["Ja","نعم"],["Nein","لا"],["Tschüss","وداعا"],["Guten Morgen","صباح الخير"],["Gute Nacht","تصبح على خير"],["Entschuldigung","آسف"],["Willkommen","أهلا بك"]]},
-{n:"الأرقام",e:"🔢",w:[["eins","واحد"],["zwei","اثنان"],["drei","ثلاثة"],["vier","أربعة"],["fünf","خمسة"],["sechs","ستة"],["sieben","سبعة"],["acht","ثمانية"],["neun","تسعة"],["zehn","عشرة"]]},
-{n:"الطعام",e:"🍞",w:[["Wasser","ماء"],["Brot","خبز"],["Milch","حليب"],["Apfel","تفاحة"],["Fleisch","لحم"],["Käse","جبن"],["Reis","أرز"],["Kaffee","قهوة"],["Ei","بيضة"],["Fisch","سمك"]]},
-{n:"العائلة",e:"👨‍👩‍👧",w:[["Vater","أب"],["Mutter","أم"],["Bruder","أخ"],["Schwester","أخت"],["Sohn","ابن"],["Tochter","ابنة"],["Großvater","جد"],["Großmutter","جدة"],["Kind","طفل"],["Freund","صديق"]]},
-{n:"الأفعال",e:"🏃",w:[["gehen","يذهب"],["kommen","يأتي"],["essen","يأكل"],["trinken","يشرب"],["lernen","يتعلم"],["sprechen","يتكلم"],["schlafen","ينام"],["lesen","يقرأ"],["schreiben","يكتب"],["arbeiten","يعمل"]]},
-{n:"أشياء وأماكن",e:"🏠",w:[["Haus","بيت"],["Schule","مدرسة"],["Stadt","مدينة"],["Auto","سيارة"],["Buch","كتاب"],["Tisch","طاولة"],["Straße","شارع"],["Arbeit","عمل"],["Zeit","وقت"],["Hund","كلب"]]}
-];
-const T=8, PASS=7;
+const P=s=>{const[a,b]=s.split("|");const m=/^(der|die|das) (.+)$/.exec(a);return m?{art:m[1],de:m[2],ar:b}:{de:a,ar:b}};
+const full=x=>x.art?x.art+" "+x.de:x.de;
+const G=GROUPS;
+const L=LEVELS.map(l=>({...l,w:l.w.map(P)}));
+const PASS=7;
 let prog={};
 try{prog=JSON.parse(localStorage.getItem("dp")||"{}")}catch(e){prog={}}
 function save(){try{localStorage.setItem("dp",JSON.stringify(prog))}catch(e){}}
@@ -61,49 +62,67 @@ let S=null,tm=null;
 
 function home(){
   clearInterval(tm);
-  $.innerHTML='<div class="stripe"></div><h1>Deutsch lernen 🇩🇪</h1><p class="sub">اختبار سرعة: ١٠ أسئلة لكل مستوى. أجب بسرعة لتحصل على نقاط أكثر. أحرز '+PASS+' من 10 لفتح المستوى التالي.</p><div class="grid">'+
-  L.map((l,i)=>{const lock=i>0&&!((prog[i-1]||{}).best>=PASS);
-    return '<button class="lv" data-i="'+i+'"'+(lock?" disabled":"")+'><div class="e">'+(lock?"🔒":l.e)+'</div><div class="n">'+(i+1)+". "+l.n+'</div><div class="s">'+stars((prog[i]||{}).best||0)+'</div></button>'}).join("")+'</div>';
+  let h='<div class="stripe"></div><h1>Deutsch lernen 🇩🇪</h1><p class="sub">اختبار سرعة: 10 أسئلة لكل مستوى. أجب بسرعة لتحصل على نقاط أكثر. أحرز '+PASS+' من 10 لفتح المستوى التالي.</p><div class="grid">',pg=-1;
+  L.forEach((l,i)=>{
+    if(l.g!==pg){h+='<div class="sec">'+G[l.g]+'</div>';pg=l.g}
+    const lock=i>0&&L[i-1].g===l.g&&!((prog[i-1]||{}).best>=PASS);
+    h+='<button class="lv" data-i="'+i+'"'+(lock?" disabled":"")+'><div class="e">'+(lock?"🔒":l.e)+'</div><div class="n">'+l.n+'</div><div class="s">'+stars((prog[i]||{}).best||0)+'</div></button>';
+  });
+  $.innerHTML=h+'</div>';
   $.querySelectorAll(".lv").forEach(b=>b.onclick=()=>start(+b.dataset.i));
 }
 
 function start(i){
-  const w=sh(L[i].w);
-  const qs=w.map((x,k)=>({w:x,dir:k<5?"ar2de":"de2ar"}));
+  const lv=L[i],w=sh(lv.w).slice(0,10);
+  const qs=w.map((x,k)=>({w:x,dir:lv.t==="a"?"art":k<5?"ar2de":"de2ar"}));
   S={i,qs:sh(qs),k:0,ok:0,pts:0,wrong:[],t0:Date.now()};
   ask();
 }
 
 function ask(){
   clearInterval(tm);
-  const q=S.qs[S.k],pool=L[S.i].w.filter(x=>x!==q.w);
-  const ai=q.dir==="ar2de"?1:0, qi=q.dir==="ar2de"?0:1; // answer index
-  const ansIdx=q.dir==="ar2de"?0:1, shownIdx=q.dir==="ar2de"?1:0;
-  const opts=sh([q.w,...sh(pool).slice(0,3)]);
-  const qDe=q.dir==="de2ar";
-  const txt=(s,de)=>de?'<span class="de">'+s+'</span>':s;
-  $.innerHTML='<div class="top"><span>المستوى '+(S.i+1)+'</span><span>'+(S.k+1)+' / 10</span><span>⭐ '+S.pts+'</span></div>'+
+  const lv=L[S.i],q=S.qs[S.k],w=q.w,TT=lv.tm||(lv.t==="s"?12:8),pool=lv.w.filter(x=>x!==w);
+  let head,main,opts,sub="",spk=true;
+  if(q.dir==="art"){
+    head="ما أداة التعريف الصحيحة؟";main='<span class="de">___ '+w.de+'</span>';
+    sub='<div class="sub2">'+w.ar+'</div><div class="sub2">der مذكر · die مؤنث · das محايد</div>';
+    opts=["der","die","das"].map(a=>({t:a,de:1,ok:a===w.art}));
+  }else if(q.dir==="ar2de"){
+    head="اختر الترجمة الألمانية";main=w.ar;spk=false;
+    opts=sh([w,...sh(pool).slice(0,3)]).map(o=>({t:full(o),de:1,ok:o===w}));
+  }else{
+    head="اختر الترجمة العربية";main='<span class="de">'+full(w)+'</span>';
+    opts=sh([w,...sh(pool).slice(0,3)]).map(o=>({t:o.ar,de:0,ok:o===w}));
+  }
+  const lg=lv.t==="s"?" long":"";
+  $.innerHTML='<div class="top"><span>'+lv.n+'</span><span>'+(S.k+1)+' / 10</span><span>⭐ '+S.pts+'</span></div>'+
   '<div class="bar"><i id="b"></i></div>'+
-  '<div class="q"><small>'+(qDe?"اختر الترجمة العربية":"اختر الترجمة الألمانية")+'</small><div class="w">'+txt(q.w[shownIdx],qDe)+'</div>'+(qDe?'<button class="spk" id="sp" aria-label="نطق">🔊</button>':"")+'</div>'+
-  '<div class="opts">'+opts.map((o,n)=>'<button class="o" data-n="'+n+'">'+txt(o[ansIdx],!qDe)+'</button>').join("")+'</div>';
+  '<div class="q"><small>'+head+'</small><div class="w'+lg+'">'+main+'</div>'+sub+(spk?'<button class="spk" id="sp" aria-label="نطق">🔊</button>':"")+'</div>'+
+  '<div class="opts">'+opts.map((o,n)=>'<button class="o'+lg+'" data-n="'+n+'">'+(o.de?'<span class="de">'+o.t+'</span>':o.t)+'</button>').join("")+'</div>';
   const sp=document.getElementById("sp");
-  if(sp)sp.onclick=()=>say(q.w[shownIdx]);
-  let left=T;const bar=document.getElementById("b");
+  if(sp)sp.onclick=()=>say(full(w));
+  let left=TT,done=false;const bar=document.getElementById("b");
   const btns=[...$.querySelectorAll(".o")];
-  let done=false;
   function fin(pick){
     if(done)return;done=true;clearInterval(tm);
-    const good=pick!==null&&opts[pick]===q.w;
-    btns.forEach((b,n)=>{b.disabled=true;if(opts[n]===q.w)b.classList.add("ok");else if(n===pick)b.classList.add("no")});
-    if(good){S.ok++;S.pts+=10+Math.ceil(left)}else S.wrong.push(q.w);
-    if(qDe||true)say(q.w[0]);
-    setTimeout(()=>{S.k++;S.k<10?ask():result()},1000);
+    const good=pick!==null&&opts[pick].ok;
+    btns.forEach((b,n)=>{b.disabled=true;if(opts[n].ok)b.classList.add("ok");else if(n===pick)b.classList.add("no")});
+    if(good){S.ok++;S.pts+=10+Math.ceil(left)}else S.wrong.push(w);
+    say(full(w));
+    setTimeout(()=>{S.k++;S.k<10?ask():result()},lv.t==="s"?1600:1000);
   }
   btns.forEach((b,n)=>b.onclick=()=>fin(n));
-  tm=setInterval(()=>{left-=.1;bar.style.width=Math.max(0,left/T*100)+"%";if(left<=3)bar.style.background="var(--bad)";if(left<=0)fin(null)},100);
+  tm=setInterval(()=>{left-=.1;bar.style.width=Math.max(0,left/TT*100)+"%";if(left<=3)bar.style.background="var(--bad)";if(left<=0)fin(null)},100);
 }
 
-function say(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="de-DE";speechSynthesis.speak(u)}catch(e){}}
+function webSay(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="de-DE";u.rate=.9;speechSynthesis.speak(u)}catch(e){}}
+function say(t){
+  let T=null;
+  try{T=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.TextToSpeech}catch(e){}
+  if(T&&T.speak){
+    Promise.resolve(T.stop&&T.stop()).catch(()=>{}).then(()=>T.speak({text:t,lang:"de-DE",rate:.9,pitch:1,volume:1})).catch(()=>webSay(t));
+  }else webSay(t);
+}
 
 function result(){
   clearInterval(tm);
@@ -117,7 +136,7 @@ function result(){
   '<button class="btn" id="re">إعادة المستوى</button>'+
   (pass&&S.i<L.length-1?'<button class="btn" id="nx">المستوى التالي ▶</button>':"")+
   '<button class="btn alt" id="hm">القائمة</button>'+
-  (S.wrong.length?'<div class="wrong"><b>للمراجعة:</b>'+S.wrong.map(w=>'<div><span class="de">'+w[0]+'</span> = '+w[1]+'</div>').join("")+'</div>':"")+'</div>';
+  (S.wrong.length?'<div class="wrong"><b>للمراجعة:</b>'+S.wrong.map(w=>'<div><span class="de">'+full(w)+'</span> = '+w.ar+'</div>').join("")+'</div>':"")+'</div>';
   document.getElementById("re").onclick=()=>start(S.i);
   const nx=document.getElementById("nx");if(nx)nx.onclick=()=>start(S.i+1);
   document.getElementById("hm").onclick=home;
