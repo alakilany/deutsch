@@ -21,7 +21,7 @@
 //   sbUrl  = رابط مشروع Supabase (مثال: "https://abcd.supabase.co") ← أيقونة المتصدرين 🌍
 //   sbKey  = المفتاح العام (anon / publishable) من Supabase
 // ============================================================
-const CFG={gc:"",sbUrl:"",sbKey:""};
+const CFG={gc:"",sbUrl:"https://andqwrvronpplxzhxrgg.supabase.co",sbKey:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuZHF3cnZyb25wcGx4emh4cmdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUwMDI3ODIsImV4cCI6MjExMDU3ODc4Mn0.yQdj-W26A54aHSQh2F89NJSRU20Yj4vw-IY721TSy64"};
 
 const GROUPS=["A1 — مبتدئ","A2 — أساسي","B1 — متوسط","B2 — فوق المتوسط","C1 — متقدم","C2 — إتقان"];
 
