@@ -84,12 +84,23 @@ const sh=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.r
 const stars=b=>b>=10?"★★★":b>=8?"★★☆":b>=PASS?"★☆☆":"☆☆☆";
 let S=null,tm=null;
 const CE=["A1","A2","B1","B2","C1","C2"];
+let TM=1.5;try{const v=localStorage.getItem("dtm");if(v!==null&&!isNaN(parseFloat(v)))TM=parseFloat(v)}catch(e){}
+const TMS=[1,1.5,2,0];
+const tmLabel=()=>TM===0?"بدون وقت":"×"+TM;
+function toggleTime(){TM=TMS[(TMS.indexOf(TM)+1)%TMS.length];try{localStorage.setItem("dtm",String(TM))}catch(e){}home()}
+function genStart(g){
+  unlock();
+  const all=[];L.forEach(l=>{if(g===null||l.g===g)l.w.forEach(x=>all.push({lv:l,w:x}))});
+  const qs=sh(all).slice(0,20).map(o=>({lv:o.lv,w:o.w,dir:o.lv.t==="a"?"art":o.lv.t==="c"?"cloze":Math.random()<.5?"ar2de":"de2ar"}));
+  S={gen:true,g,key:"G:"+(g===null?"all":CE[g]),i:-1,qs,k:0,ok:0,pts:0,wrong:[],t0:Date.now(),n:qs.length};
+  ask();
+}
 const C=typeof CFG!=="undefined"?CFG:{gc:"",sbUrl:"",sbKey:""};
 const SB=!!(C.sbUrl&&C.sbKey);
 let VIS="";
 function pid(){let i="";try{i=localStorage.getItem("dpid")||"";if(!i){i=Date.now().toString(36)+Math.random().toString(36).slice(2,8);localStorage.setItem("dpid",i)}}catch(e){}return i||"anon"}
 function hdr(){const h={apikey:C.sbKey,"Content-Type":"application/json"};if(!C.sbKey.startsWith("sb_"))h.Authorization="Bearer "+C.sbKey;return h}
-function totals(){let tp=0,dn=0;L.forEach((l,i)=>{const p=pr(i);tp+=p.pts||0;if(p.best>=PASS)dn++});return{tp,dn}}
+function totals(){let tp=0,dn=0;L.forEach((l,i)=>{const p=pr(i);tp+=p.pts||0;if(p.best>=PASS)dn++});Object.keys(prog).forEach(k=>{if(k[0]==="G")tp+=prog[k].pts||0});return{tp,dn}}
 function pushScore(){
   if(!SB)return;const t=totals();
   try{fetch(C.sbUrl+"/rest/v1/players?on_conflict=id",{method:"POST",headers:{...hdr(),Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({id:pid(),name:(NAME||"زائر").slice(0,20),points:t.tp,levels:t.dn,updated_at:new Date().toISOString()})}).catch(()=>{})}catch(e){}
@@ -167,7 +178,7 @@ function welcome(){
 
 function home(){
   clearInterval(tm);
-  let h='<div class="stripe"></div><h1>Deutsch lernen 🇩🇪</h1><p class="sub">'+(NAME?esc(NAME)+"، ":"")+'اختر مستواك. أحرز '+PASS+' من 10 لفتح المستوى التالي.</p><div class="row"><button class="btn alt" id="hs">🏆 أعلى النتائج</button><button class="btn alt" id="mt">'+(mute?"🔇 الصوت متوقف":"🔊 الصوت يعمل")+'</button>'+(SB?'<button class="btn alt" id="gb">🌍 المتصدرون</button>':"")+(C.gc?'<span class="chip" id="vc" title="عدد الزوار">👁️ '+(VIS||"…")+'</span>':"")+'</div><div class="grid">',pg=-1;
+  let h='<div class="stripe"></div><h1>Deutsch lernen 🇩🇪</h1><p class="sub">'+(NAME?esc(NAME)+"، ":"")+'اختر مستواك. أحرز '+PASS+' من 10 لفتح المستوى التالي.</p><div class="row"><button class="btn alt" id="hs">🏆 أعلى النتائج</button><button class="btn alt" id="tb">⏱️ الوقت: '+tmLabel()+'</button><button class="btn alt" id="mt">'+(mute?"🔇 الصوت متوقف":"🔊 الصوت يعمل")+'</button>'+(SB?'<button class="btn alt" id="gb">🌍 المتصدرون</button>':"")+(C.gc?'<span class="chip" id="vc" title="عدد الزوار">👁️ '+(VIS||"…")+'</span>':"")+'</div><div class="sec" style="margin:4px 0 8px">🎲 اختبار عام (20 سؤالًا مختلطًا)</div><div class="row" id="gen"><button class="btn" data-g="all">كل المستويات</button>'+CE.map((c,i)=>'<button class="btn alt" data-g="'+i+'">'+c+'</button>').join("")+'</div><div class="grid">',pg=-1;
   L.forEach((l,i)=>{
     if(l.g!==pg){h+='<div class="sec">'+G[l.g]+'</div>';pg=l.g}
     const lock=i>0&&L[i-1].g===l.g&&!(pr(i-1).best>=PASS);
@@ -175,6 +186,8 @@ function home(){
   });
   $.innerHTML=h+'</div>';
   document.getElementById("hs").onclick=scores;
+  document.getElementById("tb").onclick=toggleTime;
+  $.querySelectorAll("#gen button").forEach(b=>b.onclick=()=>genStart(b.dataset.g==="all"?null:+b.dataset.g));
   document.getElementById("mt").onclick=toggleMute;
   const gb=document.getElementById("gb");if(gb)gb.onclick=board;
   loadVis();
@@ -184,14 +197,14 @@ function home(){
 function scores(){
   clearInterval(tm);
   const es=L.map((l,i)=>({l,p:pr(i)}));
-  const tp=es.reduce((a,x)=>a+(x.p.pts||0),0),done=es.filter(x=>x.p.best>=PASS).length;
+  const tp=totals().tp,gk=Object.keys(prog).filter(k=>k[0]==="G"),done=es.filter(x=>x.p.best>=PASS).length;
   const st=es.reduce((a,x)=>a+(x.p.best>=10?3:x.p.best>=8?2:x.p.best>=PASS?1:0),0);
   const top=es.filter(x=>x.p.pts).sort((a,b)=>b.p.pts-a.p.pts).slice(0,5);
   let h='<div class="stripe"></div><h1>🏆 أعلى النتائج</h1><div class="stat"><div><b>'+tp+'</b>النقاط</div><div><b>'+done+'/'+L.length+'</b>مستويات</div><div><b>'+st+'</b>★ نجوم</div></div><h3>التقدم حسب المستوى</h3>';
   G.forEach((g,gi)=>{const a=es.filter(x=>x.l.g===gi),d=a.filter(x=>x.p.best>=PASS).length;
     h+='<div style="margin:10px 0"><div class="top"><span>'+g+'</span><span>'+d+' / '+a.length+'</span></div><div class="pb"><i style="width:'+(a.length?d/a.length*100:0)+'%"></i></div></div>'});
   h+='<h3>أفضل 5 نتائج</h3>'+(top.length?top.map((x,n)=>'<div class="rk"><span>'+(n+1)+". "+CE[x.l.g]+" · "+x.l.n+'</span><span>⭐ '+x.p.pts+" · "+x.p.best+'/10</span></div>').join(""):'<p class="sub">لم تلعب أي مستوى بعد.</p>')+
-  '<div class="row" style="margin-top:16px"><button class="btn" id="bk">رجوع</button><button class="btn alt" id="rs">مسح التقدم</button></div>';
+  (gk.length?'<h3>🎲 الاختبار العام</h3>'+gk.map(k=>'<div class="rk"><span>'+(k==="G:all"?"كل المستويات":k.slice(2))+'</span><span>⭐ '+(prog[k].pts||0)+" · "+(prog[k].best||0)+'/20</span></div>').join(""):"")+'<div class="row" style="margin-top:16px"><button class="btn" id="bk">رجوع</button><button class="btn alt" id="rs">مسح التقدم</button></div>';
   $.innerHTML=h;
   document.getElementById("bk").onclick=home;
   document.getElementById("rs").onclick=()=>{if(confirm("هل تريد مسح كل التقدم؟")){prog={};save();scores()}};
@@ -201,13 +214,13 @@ function start(i){
   unlock();
   const lv=L[i],w=sh(lv.w).slice(0,10);
   const qs=w.map((x,k)=>({w:x,dir:lv.t==="a"?"art":lv.t==="c"?"cloze":k<5?"ar2de":"de2ar"}));
-  S={i,qs:sh(qs),k:0,ok:0,pts:0,wrong:[],t0:Date.now()};
+  S={i,qs:sh(qs),k:0,ok:0,pts:0,wrong:[],t0:Date.now(),n:10};
   ask();
 }
 
 function ask(){
   clearInterval(tm);
-  const lv=L[S.i],q=S.qs[S.k],w=q.w,TT=lv.tm||(lv.t==="s"?12:lv.t==="c"?10:8),pool=lv.w.filter(x=>x!==w);
+  const q=S.qs[S.k],lv=q.lv||L[S.i],w=q.w,base=lv.tm||(lv.t==="s"?12:lv.t==="c"?10:8),NT=TM===0,TT=NT?1:base*TM,pool=lv.w.filter(x=>x!==w);
   let head,main,opts,sub="",spk=true;
   if(q.dir==="cloze"){
     head="اختر الكلمة الناقصة";spk=false;
@@ -225,7 +238,7 @@ function ask(){
     opts=sh([w,...sh(pool).slice(0,3)]).map(o=>({t:o.ar,de:0,ok:o===w}));
   }
   const lg=lv.t==="s"?" long":"",lm=(lv.t==="s"||lv.t==="c")?" long":"";
-  $.innerHTML='<div class="top"><span>'+CE[lv.g]+" · "+lv.n+'</span><span>'+(S.k+1)+' / 10</span><span>⭐ '+S.pts+'</span></div>'+
+  $.innerHTML='<div class="top"><span>'+(S.gen?"🎲 اختبار عام":CE[lv.g]+" · "+lv.n)+'</span><span>'+(S.k+1)+' / '+S.n+'</span><span>⭐ '+S.pts+'</span></div>'+
   '<div class="bar"><i id="b"></i></div>'+
   '<div class="q"><small>'+head+'</small><div class="w'+lm+'">'+main+'</div>'+sub+(spk?'<button class="spk" id="sp" aria-label="نطق">🔊</button>':"")+'</div>'+
   '<div class="opts">'+opts.map((o,n)=>'<button class="o'+lg+'" data-n="'+n+'">'+(o.de?'<span class="de">'+o.t+'</span>':o.t)+'</button>').join("")+'</div>';
@@ -237,12 +250,12 @@ function ask(){
     if(done)return;done=true;clearInterval(tm);
     const good=pick!==null&&opts[pick].ok;
     btns.forEach((b,n)=>{b.disabled=true;if(opts[n].ok)b.classList.add("ok");else if(n===pick)b.classList.add("no")});
-    if(good){S.ok++;S.pts+=10+Math.ceil(left)}else S.wrong.push(w);
+    if(good){S.ok++;S.pts+=10+(NT?0:Math.ceil(left/TM))}else S.wrong.push(w);
     say(full(w));
-    setTimeout(()=>{S.k++;S.k<10?ask():result()},lv.t==="s"||lv.t==="c"?1600:1000);
+    setTimeout(()=>{S.k++;S.k<S.n?ask():result()},lv.t==="s"||lv.t==="c"?1600:1000);
   }
   btns.forEach((b,n)=>b.onclick=()=>fin(n));
-  tm=setInterval(()=>{left-=.1;bar.style.width=Math.max(0,left/TT*100)+"%";if(left<=3)bar.style.background="var(--bad)";if(left<=0)fin(null)},100);
+  if(!NT)tm=setInterval(()=>{left-=.1;bar.style.width=Math.max(0,left/TT*100)+"%";if(left<=TT*.35)bar.style.background="var(--bad)";if(left<=0)fin(null)},100);
 }
 
 function webSay(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="de-DE";u.rate=.9;speechSynthesis.speak(u)}catch(e){}}
@@ -256,18 +269,18 @@ function say(t){
 
 function result(){
   clearInterval(tm);
-  const p=pr(S.i);
+  const key=S.gen?S.key:K(S.i),p=prog[key]||{};
   if(!(p.best>=S.ok))p.best=S.ok;
   if(!(p.pts>=S.pts))p.pts=S.pts;
-  prog[K(S.i)]=p;save();pushScore();
-  const pass=S.ok>=PASS,sec=Math.round((Date.now()-S.t0)/1000);
-  $.innerHTML='<div class="res">'+(S.ok>=PASS?WIN:LOSE)+'<div class="big">'+S.ok+' / 10</div><div style="color:var(--acc);font-size:1.6rem">'+stars(S.ok)+'</div>'+
-  '<p>'+(pass?"🎉 مبروك! تم اجتياز المستوى":"حاول مرة أخرى، تحتاج "+PASS+" على الأقل")+'</p><p class="sub">النقاط: '+S.pts+' · الوقت: '+sec+' ثانية</p>'+
+  prog[key]=p;save();pushScore();
+  const need=S.gen?Math.ceil(S.n*.7):PASS,pass=S.ok>=need,sec=Math.round((Date.now()-S.t0)/1000);
+  $.innerHTML='<div class="res">'+(pass?WIN:LOSE)+'<div class="big">'+S.ok+' / '+S.n+'</div><div style="color:var(--acc);font-size:1.6rem">'+stars(Math.round(S.ok/S.n*10))+'</div>'+
+  '<p>'+(pass?"🎉 مبروك! تم اجتياز المستوى":"حاول مرة أخرى، تحتاج "+need+" على الأقل")+'</p><p class="sub">النقاط: '+S.pts+' · الوقت: '+sec+' ثانية</p>'+
   '<button class="btn" id="re">إعادة المستوى</button>'+
-  (pass&&S.i<L.length-1?'<button class="btn" id="nx">المستوى التالي ▶</button>':"")+
+  (!S.gen&&pass&&S.i<L.length-1?'<button class="btn" id="nx">المستوى التالي ▶</button>':"")+
   '<button class="btn alt" id="hm">القائمة</button>'+
   (S.wrong.length?'<div class="wrong"><b>للمراجعة:</b>'+S.wrong.map(w=>'<div><span class="de">'+fullH(w)+'</span>'+(w.ar?" = "+w.ar:"")+'</div>').join("")+'</div>':"")+'</div>';
-  document.getElementById("re").onclick=()=>start(S.i);
+  document.getElementById("re").onclick=()=>S.gen?genStart(S.g):start(S.i);
   const nx=document.getElementById("nx");if(nx)nx.onclick=()=>start(S.i+1);
   document.getElementById("hm").onclick=home;
   sfx(pass?"win":"lose");if(pass)confetti();
